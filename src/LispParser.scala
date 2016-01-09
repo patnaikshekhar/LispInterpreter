@@ -10,7 +10,8 @@ object LispParser {
     "+" -> LispFunctionDefinition(List("n", "m"), LispBuiltInFunctionPlus()),
     "-" -> LispFunctionDefinition(List("n", "m"), LispBuiltInFunctionMinus()),
     "*" -> LispFunctionDefinition(List("n", "m"), LispBuiltInFunctionMultiply()),
-    "/" -> LispFunctionDefinition(List("n", "m"), LispBuiltInFunctionDivide())
+    "/" -> LispFunctionDefinition(List("n", "m"), LispBuiltInFunctionDivide()),
+    "def" -> LispFunctionDefinition(List("name", "exp"), LispBuiltInFunctionDefine())
   )
 
   def evaluateExpression(expression: LispExpression) = expression.evaluate(globalScope)
@@ -25,11 +26,11 @@ object LispParser {
     override def evaluate(scope : Scope) = this
   }
 
-  case class LispNumber(n: Int) extends LispExpression {
+  case class LispNumber(value: Int) extends LispExpression {
     override def evaluate(scope : Scope) = this
   }
 
-  case class LispString(s: String) extends LispExpression {
+  case class LispString(value: String) extends LispExpression {
     override def evaluate(scope : Scope) = this
   }
 
@@ -39,6 +40,10 @@ object LispParser {
 
   case class LispSymbol(name: String) extends LispExpression {
     override def evaluate(scope : Scope) = this
+  }
+
+  case class LispVariable(name: String) extends LispExpression {
+    override def evaluate(scope : Scope) = scope.get(name).get
   }
 
   case class LispFunctionDefinition(arguments: List[String], expression: LispExpression) extends LispExpression {
@@ -53,7 +58,7 @@ object LispParser {
           LispFunctionDefinition(List(), x.evaluate(scope))
       ))
 
-      scala.collection.mutable.Map(immutable: _*)
+      scala.collection.mutable.Map(immutable: _*) ++ scope
     }
 
     override def evaluate(scope : Scope) = {
@@ -69,25 +74,40 @@ object LispParser {
 
   case class LispBuiltInFunctionPlus() extends LispExpression {
     override def evaluate(scope : Scope) = LispNumber(
-      scope.get("n").get.expression.asInstanceOf[LispNumber].n +
-        scope.get("m").get.expression.asInstanceOf[LispNumber].n)
+      scope.get("n").get.expression.asInstanceOf[LispNumber].value +
+        scope.get("m").get.expression.asInstanceOf[LispNumber].value)
   }
 
   case class LispBuiltInFunctionMinus() extends LispExpression {
     override def evaluate(scope : Scope) = LispNumber(
-      scope.get("n").get.expression.asInstanceOf[LispNumber].n -
-        scope.get("m").get.expression.asInstanceOf[LispNumber].n)
+      scope.get("n").get.expression.asInstanceOf[LispNumber].value -
+        scope.get("m").get.expression.asInstanceOf[LispNumber].value)
   }
 
   case class LispBuiltInFunctionMultiply() extends LispExpression {
     override def evaluate(scope : Scope) = LispNumber(
-      scope.get("n").get.expression.asInstanceOf[LispNumber].n *
-        scope.get("m").get.expression.asInstanceOf[LispNumber].n)
+      scope.get("n").get.expression.asInstanceOf[LispNumber].value *
+        scope.get("m").get.expression.asInstanceOf[LispNumber].value)
   }
 
   case class LispBuiltInFunctionDivide() extends LispExpression {
     override def evaluate(scope : Scope) = LispNumber(
-      scope.get("n").get.expression.asInstanceOf[LispNumber].n /
-        scope.get("m").get.expression.asInstanceOf[LispNumber].n)
+      scope.get("n").get.expression.asInstanceOf[LispNumber].value /
+        scope.get("m").get.expression.asInstanceOf[LispNumber].value)
   }
+
+  case class LispBuiltInFunctionDefine() extends LispExpression {
+    override def evaluate(scope : Scope) = {
+      // Side effect of updating Scope
+      scope.put(
+        scope.get("name").get.expression.asInstanceOf[LispString].value,
+        LispFunctionDefinition(List(), scope.get("exp").get.expression.evaluate(scope))
+      )
+
+      println(scope)
+
+      LispNil
+    }
+  }
+
 }
